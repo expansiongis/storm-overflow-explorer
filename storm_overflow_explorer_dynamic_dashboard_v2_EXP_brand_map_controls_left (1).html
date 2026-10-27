@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storm Overflow Explorer</title>
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+:root{--ink:#17252d;--muted:#667780;--line:#dbe3e6;--panel:#fff;--bg:#f2f6f7;--teal:#087f8c;--green:#23865b;--amber:#c77d12;--red:#c33d48}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink);background:var(--bg)}
+header{height:66px;background:#102a34;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:16px}
+.brand{display:flex;align-items:center;gap:14px;font-weight:750;letter-spacing:.1px}.brand-logo{display:block;width:118px;height:auto;max-height:40px;object-fit:contain;flex:0 0 auto}.mark{display:none;width:34px;height:34px;border-radius:10px;background:#19a5a5;place-items:center;font-size:19px}
+header small{display:block;color:#b8d0d5;font-weight:450;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.live{display:flex;align-items:center;gap:7px;color:#d6f7e7;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#5fe0a0;box-shadow:0 0 0 4px #5fe0a020}
+main{height:calc(100vh - 66px);min-height:540px;display:grid;grid-template-columns:300px 1fr}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:20px}
+h1{font-size:22px;line-height:1.15;margin:0 0 8px;letter-spacing:-.5px}.intro{color:var(--muted);font-size:12px;margin:0 0 18px}
+.section{border-top:1px solid var(--line);padding:17px 0}.section:first-of-type{border-top:0;padding-top:0}
+.label{font-size:11px;font-weight:750;letter-spacing:.8px;text-transform:uppercase;color:#53656d;margin:0 0 9px}
+select,input,button{font:inherit}select,input{width:100%;padding:10px 11px;border:1px solid #cbd7dc;border-radius:8px;background:#fff;color:var(--ink);outline-color:var(--teal)}
+.check{display:flex;gap:9px;align-items:center;margin:10px 0;color:#34474f;font-size:13px}.check input{width:auto;accent-color:var(--teal)}
+.btn{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #cbd7dc;background:#fff;color:var(--ink);font-weight:650;cursor:pointer}.btn.primary{background:var(--teal);color:white;border-color:var(--teal)}.btn+.btn{margin-top:8px}
+.legend{display:grid;gap:9px}.legend div{display:flex;align-items:center;gap:9px;font-size:12px;color:#43555d}.swatch{width:10px;height:10px;border-radius:50%;display:inline-block}
+.note{font-size:11px;color:var(--muted);background:#f1f7f8;padding:11px;border-radius:8px;margin-top:13px}
+.mapwrap{position:relative;min-width:0}#map{position:absolute;inset:0}
+.dashboard-dock{position:absolute;z-index:3;top:12px;left:12px;right:12px;background:#ffffffef;backdrop-filter:blur(10px);border:1px solid #d9e1e4;border-radius:14px;box-shadow:0 5px 24px #122a3418;overflow:hidden}.dash-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px 0}.dash-title{font-size:13px;font-weight:800}.dash-subtitle{font-size:10px;color:var(--muted)}.dash-tabs{display:flex;gap:5px;overflow-x:auto;padding:8px 10px 0;border-bottom:1px solid var(--line)}.dash-tab{white-space:nowrap;background:transparent;border:0;border-bottom:3px solid transparent;padding:9px 11px 8px;color:#52636b;font-size:12px;font-weight:750;cursor:pointer}.dash-tab[aria-selected=true]{color:var(--teal);border-bottom-color:var(--teal)}.dash-view{padding:10px 12px 12px}.dash-view[hidden]{display:none}.dash-view .stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:0}.dash-view .stat{padding:9px 10px}.dash-view .stat strong{font-size:18px}.dash-view .stat span{font-size:9px}.dash-view .stat small{font-size:9px}.dash-view .company-table{font-size:11px}.dash-view .company-table th,.dash-view .company-table td{padding:6px 8px}.dash-placeholder{display:flex;align-items:flex-start;gap:12px;padding:7px 4px 3px;color:#52636b;font-size:12px}.dash-placeholder strong{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}.dash-placeholder .soon{display:inline-block;margin-top:7px;padding:3px 7px;border-radius:5px;background:#fff3d9;color:#80520c;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}.dashboard-dock.collapsed .dash-tabs,.dashboard-dock.collapsed .dash-view{display:none}.dash-top{padding:9px 12px;align-items:center}.dash-title-button{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:12px;font-weight:850;cursor:pointer;padding:3px 2px}.dash-title-button .chevron{display:inline-block;transition:transform .18s ease}.dashboard-dock:not(.collapsed) .dash-title-button .chevron{transform:rotate(180deg)}.mapwrap:has(.dashboard-dock.collapsed) .map-tools{top:68px}.map-tools{top:205px}
+.map-tools{position:absolute;z-index:2;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}.pill,.search{pointer-events:auto;background:#fff;border:1px solid #d9e1e4;box-shadow:0 2px 12px #122a3412;border-radius:10px;padding:10px 12px;font-size:12px}.pill strong{font-size:14px}.search{width:min(320px,50%);display:flex;gap:8px;align-items:center}.search input{border:0;padding:0;outline:0}.bottom{position:absolute;z-index:2;bottom:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:end;gap:12px;pointer-events:none}.statusbox,.sourcebox{pointer-events:auto;background:#fff;border:1px solid #d9e1e4;box-shadow:0 2px 12px #122a3412;border-radius:10px;padding:10px 12px;font-size:11px;color:#52636b;max-width:470px}.statusbox strong{display:block;color:var(--ink);font-size:12px;margin-bottom:3px}.sourcebox{max-width:300px;text-align:right}
+#message{color:var(--muted);font-size:12px;margin-top:8px;white-space:pre-wrap}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.stat{background:#f4f8f9;border-radius:9px;padding:10px;min-width:0}.stat strong{font-size:19px;display:block}.stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}.stat small{display:block;font-size:10px;color:var(--muted);margin-top:4px}.company-table{width:100%;border-collapse:collapse;font-size:11px}.company-table th,.company-table td{text-align:left;padding:7px 3px;border-bottom:1px solid #e5ecee;vertical-align:top}.company-table th{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#667780}.company-table td.num,.company-table th.num{text-align:right;white-space:nowrap}.company-table .muted{color:var(--muted)}.quality-note{font-size:11px;line-height:1.5;color:#566870;margin-top:9px}.dash-section{border-top:1px solid var(--line);padding:17px 0}
+.maplibregl-popup-content{font:12px/1.5 Inter,system-ui,sans-serif;border-radius:10px;padding:13px;max-width:290px}.popup-title{font-size:14px;font-weight:750;margin-bottom:5px}.popup-row{margin-top:4px;color:#4d6068;overflow-wrap:anywhere}
+@media(max-width:760px){.mapwrap:has(.dashboard-dock.collapsed) .map-tools{top:68px}.brand-logo{width:88px;max-height:32px}header{height:60px;padding:0 14px}main{height:auto;min-height:calc(100vh - 60px);display:flex;flex-direction:column}aside{order:2;border-right:0;border-top:1px solid var(--line)}.mapwrap{order:1;height:68vh;min-height:520px}.live{font-size:0}.live .dot{font-size:initial}.sourcebox{display:none}.dash-top{padding:9px 11px 0}.dash-view .stats{grid-template-columns:repeat(3,minmax(0,1fr))}.map-tools{top:255px}.dashboard-dock{left:8px;right:8px;top:8px}.dash-subtitle{display:none}}
+@media(max-width:480px){.mapwrap:has(.dashboard-dock.collapsed) .map-tools{top:68px}.dash-view .stats{grid-template-columns:repeat(2,minmax(0,1fr))}.map-tools{top:315px}.dash-tab{padding:9px 8px 8px;font-size:11px}.dash-view{padding:8px}.dash-view .stat strong{font-size:17px}}
+
+.header-btn{background:#fff;color:#102a34;border:0;border-radius:8px;padding:9px 12px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}.dashboard-header-btn{background:#0d9488;color:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:7px}.header-chevron{font-size:15px;line-height:1;transition:transform .18s ease}header:has(#toggleDashboard[aria-expanded="true"]) .header-chevron{transform:rotate(180deg)}
+.editor-backdrop{position:fixed;inset:0;z-index:20;background:#071b22a8;display:none;align-items:center;justify-content:center;padding:16px}
+.editor-backdrop.open{display:flex}
+.editor{width:min(980px,100%);max-height:min(92vh,900px);overflow:auto;background:#fff;border-radius:16px;box-shadow:0 20px 70px #0005}
+.editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;background:#102a34;color:white;position:sticky;top:0;z-index:2}
+.editor-head h2{font-size:18px;margin:0}.editor-head p{font-size:12px;margin:4px 0 0;color:#c5d8dd}
+.editor-body{padding:20px 22px}
+.editor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.editor-field{display:flex;flex-direction:column;gap:6px;min-width:0}.editor-field label{font-size:11px;font-weight:750;color:#53656d;text-transform:uppercase;letter-spacing:.5px}
+.editor-field input,.editor-field select,.editor-field textarea{width:100%;padding:9px 10px;border:1px solid #cbd7dc;border-radius:8px;font:inherit;font-size:13px;background:white;color:#17252d}
+.editor-field textarea{min-height:72px;resize:vertical}.editor-field.full{grid-column:1/-1}
+.editor-section{border-top:1px solid #e2e8ea;padding-top:16px;margin-top:18px}.editor-section h3{margin:0 0 12px;font-size:14px}
+.editor-checks{display:flex;flex-wrap:wrap;gap:12px 20px}.editor-check{display:flex;align-items:center;gap:7px;font-size:13px}.editor-check input{width:auto}
+.editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.editor-actions button{width:auto;margin:0}
+.editor-help{background:#f0f7f8;border-radius:9px;padding:12px;font-size:12px;color:#40555d;margin-top:14px}
+@media(max-width:760px){.editor-grid{grid-template-columns:1fr 1fr}.header-btn{padding:8px;font-size:11px}.dashboard-header-btn{font-size:0;gap:4px}.dashboard-header-btn:first-letter{font-size:14px}.dashboard-header-btn .header-chevron{font-size:14px}.editor-body{padding:16px}}
+@media(max-width:480px){.editor-grid{grid-template-columns:1fr}.editor-field.full{grid-column:auto}.live{display:none}}
+
+</style>
+</head>
+<body>
+<header><div class="brand"><img class="brand-logo" src="./EXP-wordmark.png" alt="ExpansionGIS EXP globe logo"><div id="brandTitle">Storm Overflow Explorer<small id="brandEyebrow">Open monitoring map · prototype</small></div></div><div style="display:flex;align-items:center;gap:10px"><button id="toggleDashboard" class="header-btn dashboard-header-btn" type="button" aria-expanded="false" aria-controls="dashboardContent">▦ EXPLORE THE DATA <span class="header-chevron" aria-hidden="true">⌄</span></button><button id="openCustomize" class="header-btn" type="button">⚙ Customize</button><div class="live"><span class="dot"></span><span id="liveLabel">Connecting to monitoring feed…</span></div></div></header>
+<main>
+<aside>
+<h1 id="pageHeading">Explore storm overflows</h1>
+<p class="intro" id="introText">View reported monitoring locations, compare provider feeds and filter the map. Status is not an independent measurement of pollution or environmental harm.</p>
+<div class="section">
+<div class="label">Discharge status</div>
+<select id="status"><option value="all">All monitored sites</option><option value="active">Currently indicating discharge</option><option value="stopped">Not currently discharging / stopped</option><option value="unknown">Unknown or monitor unavailable</option></select>
+</div>
+<div class="section">
+<div class="label">Water company</div>
+<select id="company">
+<option value="all">All available providers</option>
+<option value="northumbrian">Northumbrian Water</option>
+<option value="united-utilities">United Utilities</option>
+<option value="wessex-water">Wessex Water</option>
+<option value="yorkshire-water">Yorkshire Water</option>
+<option value="thames-water">Thames Water</option>
+<option value="south-west-water">South West Water</option>
+<option value="southern-water">Southern Water</option>
+<option value="severn-trent">Severn Trent</option>
+<option value="anglian-water">Anglian Water</option>
+</select>
+<div class="check"><input type="checkbox" id="recent"><label for="recent">Timestamp within last 24 hours</label></div><p class="quality-note" style="margin-top:0">A recent timestamp is not always proof of a new discharge event; feeds use different timestamp fields.</p>
+<div class="check"><input type="checkbox" id="clusters" checked><label for="clusters">Cluster nearby sites</label></div>
+</div>
+<div class="section">
+<div class="label">Find a location</div>
+<input id="search" placeholder="Search site name or watercourse">
+<div style="height:8px"></div>
+<button class="btn" id="clear">Clear filters</button>
+<button class="btn primary" id="refresh">Refresh monitoring data</button>
+<div id="message">Waiting for data…</div>
+
+</div>
+<div class="section"><div class="label">Map legend</div><div class="legend"><div><i class="swatch" style="background:#c33d48"></i>Indicating discharge</div><div><i class="swatch" style="background:#23865b"></i>Not currently discharging</div><div><i class="swatch" style="background:#8b969b"></i>Unknown / unavailable</div></div>
+<div class="note"><b>Coverage note</b><br><span id="coverageText">Nine provider feeds are configured, but coverage, status-field definitions and update frequency vary. Comparisons are provisional; locations without a verified status remain unknown.</span></div>
+</div>
+</aside>
+<div class="mapwrap"><div id="map"></div>
+<div class="dashboard-dock collapsed" id="dashboardDock" aria-label="Explorer dashboard">
+ <div class="dash-top"><div class="dash-title">Dashboard</div><div class="dash-subtitle" id="dashboardUpdated">Live feed summary</div></div>
+ <div id="dashboardContent">
+ <div class="dash-tabs" role="tablist" aria-label="Dashboard views">
+  <button class="dash-tab" id="tab-overview" role="tab" aria-selected="true" aria-controls="view-overview" data-view="overview">Overview</button>
+  <button class="dash-tab" id="tab-providers" role="tab" aria-selected="false" aria-controls="view-providers" data-view="providers">Water companies</button>
+  <button class="dash-tab" id="tab-rainfall" role="tab" aria-selected="false" aria-controls="view-rainfall" data-view="rainfall">Rainfall & rivers</button>
+  <button class="dash-tab" id="tab-history" role="tab" aria-selected="false" aria-controls="view-history" data-view="history">History & trends</button>
+ </div>
+ <section class="dash-view" id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
+  <div class="stats"><div class="stat"><strong id="total">—</strong><span>Sites loaded</span></div><div class="stat"><strong id="activeCount">—</strong><span>Indicating discharge</span><small id="activePercent">— of known-status sites</small></div><div class="stat"><strong id="knownPercent">—</strong><span>Status known</span><small id="knownCount">— sites with mapped status</small></div><div class="stat"><strong id="recentCount">—</strong><span>Recent timestamps</span><small>Within the last 24 hours</small></div><div class="stat"><strong id="shown">—</strong><span>Sites shown</span></div><div class="stat"><strong id="feedCoverage">—</strong><span>Feeds responding</span><small id="feedCoverageDetail">Configured providers</small></div></div>
+  <p class="quality-note">These figures describe the data currently available to this map. “Indicating discharge” is not a direct measure of pollution volume or environmental harm.</p>
+ </section>
+ <section class="dash-view" id="view-providers" role="tabpanel" aria-labelledby="tab-providers" hidden>
+  <div id="companySummary"><p class="quality-note">Provider statistics will appear when monitoring feeds load.</p></div>
+  <p class="quality-note">Active share = sites currently indicating discharge ÷ sites with a mapped status in that feed. Comparisons remain provisional until each provider’s status fields and codes are validated.</p>
+ </section>
+ <section class="dash-view" id="view-rainfall" role="tabpanel" aria-labelledby="tab-rainfall" hidden>
+  <div class="dash-placeholder"><span aria-hidden="true">🌧️</span><div><strong>Rainfall and river conditions</strong>Next, we can show nearby Environment Agency rainfall gauges and river-level readings, with their measurement times. Rainfall readings may be delayed, so the panel will show the age of each observation rather than implying everything is live.<br><span class="soon">Next build</span></div></div>
+ </section>
+ <section class="dash-view" id="view-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+  <div class="dash-placeholder"><span aria-hidden="true">📈</span><div><strong>Discharge history and trends</strong>This view will compare recorded starts and stops over time. It needs a reliable historical event source or scheduled storage; today's live snapshot alone cannot reconstruct yesterday's activity.<br><span class="soon">Planned</span></div></div>
+ </section>
+ </div>
+</div>
+<div class="map-tools"><div class="pill"><strong id="mapCount">—</strong><br>visible sites</div><div class="search">⌕ <input id="mapSearch" placeholder="Search map data"></div></div>
+<div class="bottom"><div class="statusbox"><strong id="feedStatus">Loading live feed</strong><span id="updated">The monitoring feed may be delayed or revised.</span></div><div class="sourcebox">Basemap: OpenFreeMap · MapLibre GL JS<br>Sources: participating water-company ArcGIS services</div></div>
+</div>
+</main>
+
+<div id="editorBackdrop" class="editor-backdrop" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+ <div class="editor">
+  <div class="editor-head"><div><h2 id="editorTitle">Customize your Explorer</h2><p>Change settings using fields and dropdowns — no coding needed.</p></div><button class="header-btn" id="closeCustomize" type="button">Close ✕</button></div>
+  <div class="editor-body">
+   <div class="editor-section" style="border-top:0;padding-top:0;margin-top:0">
+    <h3>Website content</h3>
+    <div class="editor-grid">
+     <div class="editor-field"><label for="cfgTitle">Site title</label><input id="cfgTitle"></div>
+     <div class="editor-field"><label for="cfgEyebrow">Small subtitle</label><input id="cfgEyebrow"></div>
+     <div class="editor-field"><label for="cfgHeading">Main heading</label><input id="cfgHeading"></div>
+     <div class="editor-field full"><label for="cfgIntro">Introductory text</label><textarea id="cfgIntro"></textarea></div>
+     <div class="editor-field full"><label for="cfgCoverage">Coverage note</label><textarea id="cfgCoverage"></textarea></div>
+    </div>
+   </div>
+   <div class="editor-section">
+    <h3>Data source and map</h3>
+    <div class="editor-grid">
+     <div class="editor-field full"><label for="cfgFeed">Northumbrian Water feed URL (advanced)</label><input id="cfgFeed" type="url"></div>
+     <div class="editor-field"><label for="cfgBasemap">Basemap style</label><select id="cfgBasemap"><option value="https://tiles.openfreemap.org/styles/liberty">Liberty (general)</option><option value="https://tiles.openfreemap.org/styles/bright">Bright (high contrast)</option><option value="https://tiles.openfreemap.org/styles/positron">Positron (light/minimal)</option><option value="https://tiles.openfreemap.org/styles/dark">Dark</option></select></div>
+     <div class="editor-field"><label for="cfgLon">Start longitude</label><input id="cfgLon" type="number" step="0.1"></div>
+     <div class="editor-field"><label for="cfgLat">Start latitude</label><input id="cfgLat" type="number" step="0.1"></div>
+     <div class="editor-field"><label for="cfgZoom">Start zoom (1–16)</label><input id="cfgZoom" type="number" min="1" max="16" step="0.5"></div>
+     <div class="editor-field"><label for="cfgMarker">Marker size (3–16)</label><input id="cfgMarker" type="number" min="3" max="16" step="1"></div>
+     <div class="editor-field"><label for="cfgClusterRadius">Cluster radius (20–90)</label><input id="cfgClusterRadius" type="number" min="20" max="90" step="1"></div>
+    </div>
+   </div>
+   <div class="editor-section">
+    <h3>Colours</h3>
+    <div class="editor-grid">
+     <div class="editor-field"><label for="cfgActive">Indicating discharge</label><input id="cfgActive" type="color"></div>
+     <div class="editor-field"><label for="cfgStopped">Not discharging</label><input id="cfgStopped" type="color"></div>
+     <div class="editor-field"><label for="cfgUnknown">Unknown / unavailable</label><input id="cfgUnknown" type="color"></div>
+     <div class="editor-field"><label for="cfgCluster">Cluster circles</label><input id="cfgCluster" type="color"></div>
+     <div class="editor-field"><label for="cfgAccent">Interface accent</label><input id="cfgAccent" type="color"></div>
+    </div>
+   </div>
+   <div class="editor-section">
+    <h3>Show or hide features</h3>
+    <div class="editor-checks">
+     <label class="editor-check"><input id="cfgRecent" type="checkbox"> Recent activity filter</label>
+     <label class="editor-check"><input id="cfgClusterToggle" type="checkbox"> Cluster toggle</label>
+     <label class="editor-check"><input id="cfgMapSearch" type="checkbox"> Map search box</label>
+     <label class="editor-check"><input id="cfgStats" type="checkbox"> Statistics cards</label>
+     <label class="editor-check"><input id="cfgLegend" type="checkbox"> Map legend</label>
+     <label class="editor-check"><input id="cfgPopupWater" type="checkbox"> Watercourse in popups</label>
+     <label class="editor-check"><input id="cfgPopupLast" type="checkbox"> Last activity in popups</label>
+    </div>
+   </div>
+   <div class="editor-help"><b>How publishing works:</b> “Save preview” changes this browser only. To make changes live for everyone, choose “Download settings file”, then upload the downloaded <code>config.js</code> to your GitHub repository root and commit it. The website will use those published settings. Keep a backup of the original file.</div>
+   <div class="editor-actions">
+    <button class="btn primary" id="savePreview" type="button">Save preview</button>
+    <button class="btn" id="downloadConfig" type="button">Download settings file</button>
+    <button class="btn" id="resetConfig" type="button">Reset to published settings</button>
+   </div>
+   <div id="editorMessage" class="note" aria-live="polite">Your settings have not been changed yet.</div>
+  </div>
+ </div>
+</div>
+
+<script src="./config.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
+<script>
+const DEFAULT_CONFIG = {
+ "siteTitle":"Storm Overflow Explorer",
+ "eyebrow":"Open monitoring map · prototype",
+ "pageHeading":"Explore storm overflows",
+ "introText":"View reported monitoring locations, compare provider feeds and filter the map. Status is not an independent measurement of pollution or environmental harm.",
+ "feedUrl":"https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/ArcGIS/rest/services/Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson&resultRecordCount=2000",
+ "feeds":[
+  {"id":"northumbrian","name":"Northumbrian Water","url":"https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/ArcGIS/rest/services/Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer/0"},
+  {"id":"united-utilities","name":"United Utilities","url":"https://services5.arcgis.com/5eoLvR0f8HKb7HWP/ArcGIS/rest/services/United_Utilities_Storm_Overflow_Activity/FeatureServer"},
+  {"id":"wessex-water","name":"Wessex Water","url":"https://services.arcgis.com/3SZ6e0uCvPROr4mS/ArcGIS/rest/services/Wessex_Water_Storm_Overflow_Activity/FeatureServer"},
+  {"id":"yorkshire-water","name":"Yorkshire Water","url":"https://services-eu1.arcgis.com/1WqkK5cDKUbF0CkH/ArcGIS/rest/services/Yorkshire_Water_Storm_Overflow_Activity/FeatureServer"},
+  {"id":"thames-water","name":"Thames Water","url":"https://services2.arcgis.com/g6o32ZDQ33GpCIu3/ArcGIS/rest/services/Thames_Water_Storm_Overflow_Activity_(Production)_view/FeatureServer"},
+  {"id":"south-west-water","name":"South West Water","url":"https://services-eu1.arcgis.com/OMdMOtfhATJPcHe3/ArcGIS/rest/services/NEH_outlets_PROD/FeatureServer"},
+  {"id":"southern-water","name":"Southern Water","url":"https://services-eu1.arcgis.com/6qJmARkS2dt2IjVA/ArcGIS/rest/services/SouthernWater_StormOverflowActivity_PROD_view/FeatureServer"},
+  {"id":"severn-trent","name":"Severn Trent","url":"https://services1.arcgis.com/NO7lTIlnxRMMG9Gw/ArcGIS/rest/services/Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer"},
+  {"id":"anglian-water","name":"Anglian Water","url":"https://services3.arcgis.com/VCOY1atHWVcDlvlJ/ArcGIS/rest/services/stream_service_outfall_locations_view/FeatureServer"}
+ ],
+ "basemapStyle":"https://tiles.openfreemap.org/styles/liberty","centerLon":-1.7,"centerLat":54.8,"zoom":6,
+ "activeColor":"#c33d48","stoppedColor":"#23865b","unknownColor":"#8b969b","clusterColor":"#087f8c","accentColor":"#087f8c",
+ "markerSize":7,"clusterRadius":48,"showRecentFilter":true,"showClustersToggle":true,"showMapSearch":true,"showStats":true,"showLegend":true,"showPopupWatercourse":true,"showPopupLastActivity":true,
+ "coverageText":"Nine provider feeds are configured, but coverage, status-field definitions and update frequency vary. Comparisons are provisional; locations without a verified status remain unknown."
+};
+const publishedConfig = window.STORM_CONFIG || {};
+let config = {...DEFAULT_CONFIG, ...publishedConfig};
+// Keep the full nine-provider coverage when an older config.js contains only a subset.
+config.feeds = Array.isArray(publishedConfig.feeds) && publishedConfig.feeds.length
+ ? [...new Map([...DEFAULT_CONFIG.feeds, ...publishedConfig.feeds].map(feed => [feed.id, feed])).values()]
+ : DEFAULT_CONFIG.feeds;
+if(/currently connects to a Northumbrian Water ArcGIS feed only/i.test(config.coverageText||'')) config.coverageText=DEFAULT_CONFIG.coverageText;
+let FEED = config.feedUrl;
+let allFeatures = [];
+let mapReady = false;
+const $ = id => document.getElementById(id);
+loadLocalPreview();
+applyConfigToPage();
+setupEditor();
+const map = new maplibregl.Map({
+  container:'map',
+  style:config.basemapStyle,
+  center:[Number(config.centerLon),Number(config.centerLat)], zoom:Number(config.zoom)
+});
+map.addControl(new maplibregl.NavigationControl(),'top-right');
+map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-right');
+map.on('load',()=>{mapReady=true;map.addSource('overflows',{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterRadius:Number(config.clusterRadius),clusterMaxZoom:12});
+map.addLayer({id:'overflow-clusters',type:'circle',source:'overflows',filter:['has','point_count'],paint:{'circle-color':config.clusterColor,'circle-radius':['step',['get','point_count'],17,25,22,100,28],'circle-stroke-width':2,'circle-stroke-color':'#fff'}});
+map.addLayer({id:'cluster-count',type:'symbol',source:'overflows',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-size':12},paint:{'text-color':'#fff'}});
+map.addLayer({id:'overflow-points',type:'circle',source:'overflows',filter:['!',['has','point_count']],paint:{'circle-radius':['interpolate',['linear'],['zoom'],5,Math.max(3,Number(config.markerSize)-2),12,Number(config.markerSize)],'circle-color':['match',['get','_status'],'active',config.activeColor,'stopped',config.stoppedColor,config.unknownColor],'circle-stroke-width':1.5,'circle-stroke-color':'#fff'}});
+map.on('click','overflow-points',e=>{const f=e.features[0];const p=f.properties||{};const html='<div class="popup-title">'+esc(p._name||'Storm overflow site')+'</div><div class="popup-row"><b>Status:</b> '+esc(p._statusLabel||'Unknown')+'</div><div class="popup-row"><b>Water company:</b> '+esc(p._company||'Not supplied')+'</div>'+(config.showPopupLastActivity?'<div class="popup-row"><b>Last activity:</b> '+esc(p._last||'Not supplied')+'</div>':'')+(config.showPopupWatercourse?'<div class="popup-row"><b>Watercourse:</b> '+esc(p._water||'Not supplied')+'</div>':'')+'<div class="popup-row"><b>Source:</b> '+esc(p._company||'Water company feed')+'</div><div class="popup-row">Monitor data may be delayed or erroneous.</div>';new maplibregl.Popup({maxWidth:'300px'}).setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);});
+map.on('click','overflow-clusters',e=>{const features=map.queryRenderedFeatures(e.point,{layers:['overflow-clusters']});if(!features.length)return;const id=features[0].properties.cluster_id;map.getSource('overflows').getClusterExpansionZoom(id,(err,zoom)=>{if(!err)map.easeTo({center:features[0].geometry.coordinates,zoom});});});
+for(const layer of ['overflow-points','overflow-clusters'])map.on('mouseenter',layer,()=>map.getCanvas().style.cursor='pointer');
+map.on('mouseleave','overflow-points',()=>map.getCanvas().style.cursor='');map.on('mouseleave','overflow-clusters',()=>map.getCanvas().style.cursor='');
+loadData();});
+
+function applyConfigToPage(){
+ document.title=config.siteTitle||'Storm Overflow Explorer';
+ const title=$('brandTitle'); title.innerHTML=esc(config.siteTitle||'Storm Overflow Explorer')+'<small id="brandEyebrow">'+esc(config.eyebrow||'Open monitoring map · prototype')+'</small>';
+ $('pageHeading') && ($('pageHeading').textContent=config.pageHeading||'Explore storm overflows');
+ $('introText') && ($('introText').textContent=config.introText||'');
+ const coverage=document.getElementById('coverageText'); if(coverage)coverage.textContent=config.coverageText||'';
+ document.documentElement.style.setProperty('--teal',config.accentColor||'#087f8c');
+ const swatches=document.querySelectorAll('.legend .swatch');
+ if(swatches[0])swatches[0].style.background=config.activeColor||'#c33d48';
+ if(swatches[1])swatches[1].style.background=config.stoppedColor||'#23865b';
+ if(swatches[2])swatches[2].style.background=config.unknownColor||'#8b969b';
+ const recentLabel=document.getElementById('recent')?.closest('.check'); if(recentLabel)recentLabel.style.display=config.showRecentFilter?'flex':'none';
+ const clusterLabel=document.getElementById('clusters')?.closest('.check'); if(clusterLabel)clusterLabel.style.display=config.showClustersToggle?'flex':'none';
+ const mapSearch=document.getElementById('mapSearch')?.closest('.search'); if(mapSearch)mapSearch.style.display=config.showMapSearch?'flex':'none';
+ const stats=document.querySelector('.stats'); if(stats)stats.style.display=config.showStats?'grid':'none';
+ const legend=document.querySelector('.section .legend'); if(legend)legend.parentElement.parentElement.style.display=config.showLegend?'block':'none';
+}
+function readEditorConfig(){
+ const val=id=>$(id).value;
+ return {
+  ...config,
+  siteTitle:val('cfgTitle').trim()||DEFAULT_CONFIG.siteTitle,
+  eyebrow:val('cfgEyebrow').trim(),
+  pageHeading:val('cfgHeading').trim()||DEFAULT_CONFIG.pageHeading,
+  introText:val('cfgIntro').trim(),
+  coverageText:val('cfgCoverage').trim(),
+  feedUrl:val('cfgFeed').trim()||DEFAULT_CONFIG.feedUrl,
+  basemapStyle:val('cfgBasemap'),
+  centerLon:Number(val('cfgLon'))||0, centerLat:Number(val('cfgLat'))||0,
+  zoom:Math.max(1,Math.min(16,Number(val('cfgZoom'))||6)),
+  markerSize:Math.max(3,Math.min(16,Number(val('cfgMarker'))||7)),
+  clusterRadius:Math.max(20,Math.min(90,Number(val('cfgClusterRadius'))||48)),
+  activeColor:val('cfgActive'), stoppedColor:val('cfgStopped'), unknownColor:val('cfgUnknown'),
+  clusterColor:val('cfgCluster'), accentColor:val('cfgAccent'),
+  showRecentFilter:$('cfgRecent').checked, showClustersToggle:$('cfgClusterToggle').checked,
+  showMapSearch:$('cfgMapSearch').checked, showStats:$('cfgStats').checked,
+  showLegend:$('cfgLegend').checked, showPopupWatercourse:$('cfgPopupWater').checked,
+  showPopupLastActivity:$('cfgPopupLast').checked
+ };
+}
+function fillEditor(){
+ const set=(id,v)=>{if($(id))$(id).value=v??'';};
+ set('cfgTitle',config.siteTitle);set('cfgEyebrow',config.eyebrow);set('cfgHeading',config.pageHeading);
+ set('cfgIntro',config.introText);set('cfgCoverage',config.coverageText);set('cfgFeed',config.feedUrl);
+ set('cfgBasemap',config.basemapStyle);set('cfgLon',config.centerLon);set('cfgLat',config.centerLat);set('cfgZoom',config.zoom);
+ set('cfgMarker',config.markerSize);set('cfgClusterRadius',config.clusterRadius);
+ set('cfgActive',config.activeColor);set('cfgStopped',config.stoppedColor);set('cfgUnknown',config.unknownColor);
+ set('cfgCluster',config.clusterColor);set('cfgAccent',config.accentColor);
+ $('cfgRecent').checked=!!config.showRecentFilter;$('cfgClusterToggle').checked=!!config.showClustersToggle;
+ $('cfgMapSearch').checked=!!config.showMapSearch;$('cfgStats').checked=!!config.showStats;
+ $('cfgLegend').checked=!!config.showLegend;$('cfgPopupWater').checked=!!config.showPopupWatercourse;
+ $('cfgPopupLast').checked=!!config.showPopupLastActivity;
+}
+function saveLocalPreview(){
+ config=readEditorConfig();localStorage.setItem('stormOverflowExplorerPreview',JSON.stringify(config));applyConfigToPage();
+ $('editorMessage').textContent='Preview saved in this browser. To publish it for everyone, download config.js and upload it to the repository root.';
+ // Applying a different style resets MapLibre layers, so reload to apply all map settings consistently.
+ $('editorMessage').textContent+=' The page will reload now to apply the map and feed settings.';
+ setTimeout(()=>location.reload(),450);
+}
+function downloadSettings(){
+ const newConfig=readEditorConfig();
+ const js='window.STORM_CONFIG = '+JSON.stringify(newConfig,null,2)+';\\n';
+ const blob=new Blob([js],{type:'text/javascript;charset=utf-8'});const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='config.js';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+ $('editorMessage').textContent='Downloaded config.js. Upload it to the repository root, replacing the existing config.js, then commit the change.';
+}
+function setupEditor(){
+ $('openCustomize').addEventListener('click',()=>{$('editorBackdrop').classList.add('open');fillEditor();});
+ $('closeCustomize').addEventListener('click',()=>$('editorBackdrop').classList.remove('open'));
+ $('editorBackdrop').addEventListener('click',e=>{if(e.target===$('editorBackdrop'))$('editorBackdrop').classList.remove('open');});
+ $('savePreview').addEventListener('click',saveLocalPreview);
+ $('downloadConfig').addEventListener('click',downloadSettings);
+ $('resetConfig').addEventListener('click',()=>{localStorage.removeItem('stormOverflowExplorerPreview');$('editorMessage').textContent='Local preview cleared. Reloading with the published config.js…';setTimeout(()=>location.reload(),300);});
+}
+function loadLocalPreview(){
+ try{const saved=localStorage.getItem('stormOverflowExplorerPreview');if(saved)config={...config,...JSON.parse(saved)};}catch(e){}
+ FEED=config.feedUrl||DEFAULT_CONFIG.feedUrl;
+ populateCompanyFilter();
+}
+
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function findProp(p,patterns){const entries=Object.entries(p||{});for(const pat of patterns){const found=entries.find(([k,v])=>new RegExp(pat,'i').test(k)&&v!==null&&v!==undefined&&v!=='');if(found)return found[1];}return '';}
+function getValue(p, names){
+ const keys=Object.keys(p||{});
+ for(const wanted of names){
+  const key=keys.find(k=>k.toLowerCase()===wanted.toLowerCase());
+  if(key && p[key]!==null && p[key]!==undefined && p[key]!=='') return p[key];
+ }
+ return '';
+}
+function findProp(p,patterns){const entries=Object.entries(p||{});for(const pat of patterns){const found=entries.find(([k,v])=>new RegExp(pat,'i').test(k)&&v!==null&&v!==undefined&&v!=='');if(found)return found[1];}return '';}
+function populateCompanyFilter(){
+ const select=$('company'); if(!select)return;
+ const current=select.value||'all';
+ const providers=config.feeds||DEFAULT_CONFIG.feeds;
+ select.innerHTML='<option value="all">All available providers</option>'+providers.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');
+ select.value=[...select.options].some(o=>o.value===current)?current:'all';
+}
+function normalize(f, provider){
+ let feature=f;
+ const p=feature.properties||{};
+ // The shared STREAM-style activity feeds use Status values 1=Start, 0=Stop, -1=Offline.
+ // Text statuses are handled too; unknown values stay unknown rather than being guessed.
+ const statusValue=getValue(p,['Status','status','ActivityStatus','DischargeStatus','CurrentStatus']);
+ const rawStatus=String(statusValue??'').trim().toLowerCase();
+ const numericStatus=(statusValue===''||statusValue===null||statusValue===undefined)?NaN:Number(statusValue);
+ const isActive=numericStatus===1 || /^(active|start|starting|currently discharging|discharging|ongoing|in progress|spill started|true)$/.test(rawStatus);
+ const isStopped=numericStatus===0 || /^(stop|stopped|ended|complete|completed|inactive|not discharging|false|no current discharge)$/.test(rawStatus);
+ const isOffline=numericStatus===-1 || /^(offline|monitor offline|unavailable|unknown|not available)$/.test(rawStatus);
+ const status=isActive?'active':isStopped?'stopped':isOffline?'unknown':'unknown';
+ const last=getValue(p,['LatestEventStart','latestEventStart','LastActivity','LastEvent','LastUpdated','lastUpdated','StatusStart','statusStart']) || findProp(p,['last.*(event|activ|spill)','event.*(start|time)','start.*time','last.*time','timestamp','updated']);
+ const sourceCompany=getValue(p,['Company','company','WaterCompany','Provider'])||provider.name;
+ const name=getValue(p,['SiteName','siteName','OverflowName','LocationName','AssetName','Name','Id','ID','SiteId','siteId'])||findProp(p,['site.*name','overflow.*name','location.*name','asset.*name','name','description','label'])||'Storm overflow site';
+ const water=getValue(p,['ReceivingWaterCourse','receivingWaterCourse','ReceivingWatercourse','Watercourse','WaterCourse','River','Waterbody'])||findProp(p,['watercourse','receiving.*water','river','waterbody']);
+ let coords=feature.geometry&&feature.geometry.coordinates;
+ if(feature.geometry && feature.geometry.type==='Point' && Array.isArray(coords) && coords.length>=2){coords=[Number(coords[0]),Number(coords[1])];}
+ // Some feeds return point attributes but no GeoJSON geometry. Use explicit lon/lat fields only when present.
+ if(!coords || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])){
+  const lon=Number(getValue(p,['Longitude','longitude','OutfallLongitude','outfallLongitude','Long','Lon']));
+  const lat=Number(getValue(p,['Latitude','latitude','OutfallLatitude','outfallLatitude','Lat']));
+  if(Number.isFinite(lon)&&Number.isFinite(lat)) {feature={...feature,geometry:{type:'Point',coordinates:[lon,lat]}};coords=feature.geometry.coordinates;}
+  else return null;
+ }
+ const lastDisplay=last ? formatDate(last) : '';
+ return {...feature,properties:{...p,_provider:provider.id,_company:provider.name,_sourceCompany:String(sourceCompany),_status:status,_statusLabel:status==='active'?'Indicating discharge':status==='stopped'?'Not currently discharging':isOffline?'Monitor offline':'Status not supplied / not mapped',_name:String(name),_water:String(water||''),_last:String(lastDisplay||last||''),_search:(String(name)+' '+String(provider.name)+' '+String(sourceCompany)+' '+String(water||'')).toLowerCase(),_recent:!!last&&isRecent(last)}};
+}
+function formatDate(v){
+ if(typeof v==='number' || /^\d{10,13}$/.test(String(v))){const n=Number(v);const d=new Date(n<1e12?n*1000:n);return isNaN(d)?String(v):d.toLocaleString();}
+ const d=new Date(v);return isNaN(d)?String(v):d.toLocaleString();
+}
+function isRecent(v){let d;if(typeof v==='number'||/^\d{10,13}$/.test(String(v))){const n=Number(v);d=new Date(n<1e12?n*1000:n);}else d=new Date(v);return !isNaN(d)&&Date.now()-d.getTime()>=0&&Date.now()-d.getTime()<=86400000;}
+function queryUrl(base, offset, format='geojson'){
+ let u=String(base||'').trim().replace(/\/$/,'');
+ // Accept a service root, layer URL, or an already-configured /query URL.
+ if(/\/query(?:\?|$)/i.test(u)){
+  const url=new URL(u);url.searchParams.set('where','1=1');url.searchParams.set('outFields','*');url.searchParams.set('returnGeometry','true');url.searchParams.set('outSR','4326');url.searchParams.set('f',format);url.searchParams.set('resultRecordCount','1000');url.searchParams.set('resultOffset',String(offset));return url.toString();
+ }
+ if(/\/FeatureServer$/i.test(u) || /\/MapServer$/i.test(u)) u+='/0';
+ return u+'/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f='+format+'&resultRecordCount=1000&resultOffset='+offset;
+}
+async function fetchProvider(provider){
+ const base=(provider.id==='northumbrian' && config.feedUrl)?config.feedUrl:provider.url;
+ let offset=0, collected=[], pageLimit=1000;
+ for(let page=0;page<100;page++){
+  let data, responseError;
+  for(const format of ['geojson','json']){
+   try{
+    const r=await fetch(queryUrl(base,offset,format));if(!r.ok)throw new Error('HTTP '+r.status);
+    const candidate=await r.json();if(candidate.error)throw new Error(candidate.error.message||'ArcGIS returned an error');
+    data=candidate;break;
+   }catch(e){responseError=e;}
+  }
+  if(!data)throw responseError||new Error('No response from ArcGIS');
+  let features=Array.isArray(data.features)?data.features:[];
+  if(data.geometryType && features.length && features[0].attributes){
+   features=features.map(item=>({type:'Feature',geometry:item.geometry?{type:'Point',coordinates:[Number(item.geometry.x),Number(item.geometry.y)]}:null,properties:item.attributes||{}}));
+  }
+  collected.push(...features);
+  if(features.length<pageLimit)break;
+  offset+=features.length;
+ }
+ return collected.map(f=>normalize(f,provider)).filter(Boolean);
+}
+async function loadData(){
+ $('message').textContent='Requesting monitoring feeds…';$('feedStatus').textContent='Loading provider feeds';$('liveLabel').textContent='Connecting to feeds…';
+ const providers=config.feeds||DEFAULT_CONFIG.feeds;
+ const outcomes=await Promise.all(providers.map(async provider=>{
+  try {const features=await fetchProvider(provider);return {provider,features,error:features.length?null:'No usable point features returned'};}
+  catch(e){return {provider,features:[],error:e.message};}
+ }));
+ allFeatures=outcomes.flatMap(x=>x.features);
+ const loaded=outcomes.filter(x=>x.features.length), failed=outcomes.filter(x=>x.error);
+ if(!allFeatures.length){
+  $('liveLabel').textContent='Feeds unavailable';$('feedStatus').textContent='Could not load provider feeds';
+  $('message').textContent='No usable features loaded. '+failed.map(x=>x.provider.name+': '+x.error).join(' | ')+'\nIf browser CORS or network rules block a source, it may need a small proxy/backend.';
+  render();return;
+ }
+ $('liveLabel').textContent=loaded.length+' of '+providers.length+' feeds connected';$('feedStatus').textContent=loaded.length+' of '+providers.length+' provider feeds connected';
+ $('updated').textContent='Fetched '+new Date().toLocaleString()+' · source data may lag actual conditions';$('dashboardUpdated').textContent='Fetched '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+ $('message').textContent='Loaded '+allFeatures.length.toLocaleString()+' sites from '+loaded.length+' of '+providers.length+' feeds.'+(failed.length?' Feeds needing attention: '+failed.map(x=>x.provider.name+' ('+x.error+')').join('; '):' All configured feeds responded.')+' Status mappings are provisional and provider-specific fields still need validation.';
+ render();
+}
+function render(){
+ if(!mapReady)return;
+ const status=$('status').value, company=$('company').value, recent=$('recent').checked, q=($('search').value+' '+$('mapSearch').value).trim().toLowerCase();
+ const shown=allFeatures.filter(f=>{const p=f.properties;if(status!=='all'&&p._status!==status)return false;if(company!=='all'&&p._provider!==company)return false;if(recent&&!p._recent)return false;if(q&&!p._search.includes(q))return false;return true;});
+ map.getSource('overflows').setData({type:'FeatureCollection',features:shown});
+ const known=allFeatures.filter(f=>['active','stopped'].includes(f.properties._status));
+ const active=allFeatures.filter(f=>f.properties._status==='active').length;
+ const knownPct=allFeatures.length?Math.round(known.length/allFeatures.length*100):0;
+ const activePct=known.length?Math.round(active/known.length*100):0;
+ $('total').textContent=allFeatures.length.toLocaleString();$('shown').textContent=shown.length.toLocaleString();$('mapCount').textContent=shown.length.toLocaleString();
+ $('activeCount').textContent=active.toLocaleString();$('activePercent').textContent=known.length?activePct+'% of known-status sites':'No mapped status data';
+ $('knownPercent').textContent=allFeatures.length?knownPct+'%':'—';$('knownCount').textContent=known.length.toLocaleString()+' of '+allFeatures.length.toLocaleString()+' sites';
+ $('recentCount').textContent=allFeatures.filter(f=>f.properties._recent).length.toLocaleString();
+ const providers=config.feeds||DEFAULT_CONFIG.feeds;
+ const providerNames=new Map(providers.map(x=>[x.id,x.name]));
+ const summary=providers.map(provider=>{
+  const features=allFeatures.filter(f=>f.properties._provider===provider.id);
+  const mapped=features.filter(f=>['active','stopped'].includes(f.properties._status));
+  const activeCount=features.filter(f=>f.properties._status==='active').length;
+  const pct=mapped.length?Math.round(activeCount/mapped.length*100):null;
+  return {name:provider.name||providerNames.get(provider.id)||provider.id,count:features.length,mapped:mapped.length,active:activeCount,pct};
+ }).filter(x=>x.count>0).sort((a,b)=>b.active-a.active||b.count-a.count);
+ $('companySummary').innerHTML=summary.length?'<table class="company-table"><thead><tr><th>Provider</th><th class="num">Sites</th><th class="num">Active</th><th class="num">Active share</th></tr></thead><tbody>'+summary.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="num">'+x.count.toLocaleString()+'</td><td class="num">'+x.active.toLocaleString()+'</td><td class="num">'+(x.pct===null?'<span class="muted">n/a</span>':x.pct+'%')+'</td></tr>').join('')+'</tbody></table>':'<p class="quality-note">No provider sites have loaded yet.</p>';
+ const loaded=new Set(allFeatures.map(f=>f.properties._provider));
+ $('feedCoverage').textContent=loaded.size+' / '+providers.length;
+ $('feedCoverageDetail').textContent='provider feeds with usable point sites';
+}
+const dashboardDock=$('dashboardDock');
+$('toggleDashboard').addEventListener('click',()=>{
+ const expanded=dashboardDock.classList.toggle('collapsed')===false;
+ $('toggleDashboard').setAttribute('aria-expanded',String(expanded));
+ $('dashboardUpdated').textContent=expanded?'Live feed summary':'Dashboard hidden';
+});
+document.querySelectorAll('.dash-tab').forEach(tab=>tab.addEventListener('click',()=>{
+ const target=tab.dataset.view;
+ document.querySelectorAll('.dash-tab').forEach(t=>t.setAttribute('aria-selected',String(t===tab)));
+ document.querySelectorAll('.dash-view').forEach(panel=>panel.hidden=panel.id!=='view-'+target);
+ $('dashboardUpdated').textContent=target==='overview'?'Live feed summary':target==='providers'?'Provider comparison':target==='rainfall'?'Rainfall and river context':'Historical analysis';
+}));
+['status','company','recent','search','mapSearch'].forEach(id=>$(id).addEventListener(id==='recent'?'change':'input',render));
+$('clear').addEventListener('click',()=>{$('status').value='all';$('company').value='all';$('recent').checked=false;$('search').value='';$('mapSearch').value='';render();});
+$('refresh').addEventListener('click',loadData);
+$('clusters').addEventListener('change',()=>{if(mapReady){map.setLayoutProperty('overflow-clusters','visibility',$('clusters').checked?'visible':'none');map.setLayoutProperty('cluster-count','visibility',$('clusters').checked?'visible':'none');}});
+</script>
+</body>
+</html>
+<style id="layout-cleanup-v3">
+/* Keep status/source labels off the map and dock the dashboard at the bottom. */
+.mapwrap .bottom { display: none !important; }
+.mapwrap .dashboard-dock { top: auto !important; bottom: 12px !important; left: 12px; right: 12px; max-height: 48%; overflow-y: auto; overscroll-behavior: contain; }
+.mapwrap .dashboard-dock.collapsed { max-height: none; overflow: hidden; }
+.mapwrap .dashboard-dock { z-index: 3; }
+/* Move search and visible-site count to the left edge of the map frame. */
+.mapwrap .map-tools { top: 14px !important; left: 14px !important; right: auto !important; width: min(320px, calc(100% - 76px)); display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 7px; z-index: 4; }
+.mapwrap .map-tools .search { order: 1; width: 100%; max-width: 320px; }
+.mapwrap .map-tools .pill { order: 2; padding: 7px 10px; }
+.mapwrap .map-tools .search input { min-width: 0; width: 100%; }
+@media (max-width:760px) {
+  .mapwrap .dashboard-dock { left: 8px; right: 8px; bottom: 8px !important; max-height: 46%; }
+  .mapwrap .dashboard-dock.collapsed { max-height: none; }
+  .mapwrap .map-tools { top: 10px !important; left: 8px !important; right: auto !important; width: min(280px, calc(100% - 64px)); }
+  .mapwrap .map-tools .search { width: 100%; }
+}
+@media (max-width:480px) {
+  .mapwrap .dashboard-dock { max-height: 44%; }
+  .mapwrap .map-tools { top: 8px !important; left: 8px !important; right: auto !important; width: calc(100% - 64px); }
+  .mapwrap .map-tools .search { width: 100%; padding: 9px 10px; }
+}
+</style>
