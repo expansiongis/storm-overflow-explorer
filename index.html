@@ -255,9 +255,33 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function findProp(p,patterns){const entries=Object.entries(p||{});for(const pat of patterns){const found=entries.find(([k,v])=>new RegExp(pat,'i').test(k)&&v!==null&&v!==undefined&&v!=='');if(found)return found[1];}return '';}
 function normalize(f){
  const p=f.properties||{};
- const rawStatus=String(findProp(p,['status','activity','discharg','spill','event'])||'').toLowerCase();
- const isActive=/(active|currently|discharg|ongoing|in progress|spill started|true)/.test(rawStatus)&&!/(inactive|not discharg|stopped|false|no current)/.test(rawStatus);
- const isStopped=/(stopped|ended|complete|inactive|not discharg|no current|false)/.test(rawStatus);
+ 
+const statusValue = findProp(p, [
+  '^status$',
+  'activity',
+  'discharg',
+  'spill',
+  'event'
+]);
+
+const rawStatus = String(statusValue ?? '').trim().toLowerCase();
+
+const numericStatus =
+  statusValue === '' || statusValue == null
+    ? NaN
+    : Number(statusValue);
+
+const isActive =
+  numericStatus === 1 ||
+  /^(active|start|starting|currently discharging)$/.test(rawStatus);
+
+const isStopped =
+  numericStatus === 0 ||
+  /^(stop|stopped|ended|complete|inactive|not discharging|false)$/.test(rawStatus);
+
+const status =
+  isActive ? 'active' : isStopped ? 'stopped' : 'unknown';
+ete|inactive|not discharg|no current|false)/.test(rawStatus);
  const status=isActive?'active':isStopped?'stopped':'unknown';
  const last=findProp(p,['last.*(event|activ|spill)','event.*(start|time)','start.*time','last.*time','timestamp','updated']);
  const company=findProp(p,['company','water.*undertaker','provider'])||'Northumbrian Water';
